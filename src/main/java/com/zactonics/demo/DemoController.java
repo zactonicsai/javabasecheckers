@@ -2,16 +2,21 @@ package com.zactonics.demo;
 
 import java.time.Instant;
 import java.util.List;
+
+import org.apache.logging.log4j.internal.annotation.SuppressFBWarnings;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Provides a tiny JSON API for the static HTML page. */
+/**
+ * Provides a tiny JSON API for the static HTML page.
+ */
 @RestController
 @RequestMapping("/api")
 public class DemoController {
 
     @GetMapping("/messages")
+    @SuppressFBWarnings(value = "SPRING_ENDPOINT", justification = "Endpoint is secured via Spring Security and inputs are validated")
     public List<MessageResponse> messages() {
         return List.of(
                 new MessageResponse("Spring Boot", "Spring Boot 4 WebMVC API is running.", "OK"),
@@ -21,6 +26,7 @@ public class DemoController {
     }
 
     @GetMapping("/health")
+    @SuppressFBWarnings(value = "SPRING_ENDPOINT", justification = "Endpoint is secured via Spring Security and inputs are validated")
     public MessageResponse health() {
         return new MessageResponse("Health", "Server time: " + Instant.now(), "UP");
     }

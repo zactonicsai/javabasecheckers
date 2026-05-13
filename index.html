@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Secure Java 25 — Build Guide & Checker Reference</title>
+    <meta name="description" content="Comprehensive guide to building secure Java 25 + Spring Boot 4 applications with Checkstyle, PMD, SpotBugs, FindSecBugs, OWASP Dependency-Check, and JaCoCo.">
+
+    <!-- Tailwind (Play CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+              mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+            },
+            colors: {
+              ibm: {
+                blue10: '#edf5ff',
+                blue20: '#d0e2ff',
+                blue40: '#78a9ff',
+                blue50: '#4589ff',
+                blue60: '#0f62fe',
+                blue70: '#0043ce',
+                blue80: '#002d9c',
+                blue90: '#001d6c',
+                gray10: '#f4f4f4',
+                gray20: '#e0e0e0',
+                gray30: '#c6c6c6',
+                gray50: '#8d8d8d',
+                gray70: '#525252',
+                gray80: '#393939',
+                gray90: '#262626',
+                gray100: '#161616',
+                red60:  '#da1e28',
+                green60:'#198038',
+                yellow30:'#f1c21b',
+              }
+            }
+          }
+        }
+      };
+    </script>
+
+    <!-- IBM Plex font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Prism for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+
+    <style>
+      :root { color-scheme: light dark; }
+
+      html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+      body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+      code, pre, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+      /* IBM Carbon-style square-ish edges. Override Tailwind's default rounding feel. */
+      .ibm-card { border-radius: 0; }
+
+      /* Grid background detail for hero — subtle IBM-y */
+      .grid-bg {
+        background-image:
+          linear-gradient(to right, rgba(15,98,254,0.06) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(15,98,254,0.06) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+      .dark .grid-bg {
+        background-image:
+          linear-gradient(to right, rgba(120,169,255,0.07) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(120,169,255,0.07) 1px, transparent 1px);
+      }
+
+      /* TOC active link */
+      .toc a.active { color: #0f62fe; border-left-color: #0f62fe; font-weight: 600; }
+      .dark .toc a.active { color: #78a9ff; border-left-color: #78a9ff; }
+
+      /* Code blocks: tighter line-height than Prism default */
+      pre[class*='language-'] { font-size: 0.84rem; line-height: 1.55; margin: 0; border-radius: 0; }
+      :not(pre) > code[class*='language-'] { padding: 0.1rem 0.35rem; border-radius: 0; }
+
+      /* Force dark-themed code in both modes for consistency (IBM-y mono terminal feel) */
+      pre[class*='language-'] { background: #161616 !important; }
+      :not(pre) > code { background: rgba(15,98,254,.08); color: #0f62fe; padding: 0.1em 0.35em; }
+      .dark :not(pre) > code { background: rgba(120,169,255,.12); color: #78a9ff; }
+
+      /* Mobile drawer slide */
+      .drawer { transition: transform .25s ease; }
+      .drawer.closed { transform: translateX(-100%); }
+
+      /* Tab active state */
+      .tab-btn.active { color: #fff; background: #0f62fe; }
+      .dark .tab-btn.active { background: #4589ff; color: #161616; }
+
+      /* Severity pills */
+      .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .55rem; font-size: .7rem; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+
+      /* Anchor offset for in-page nav */
+      .anchor { scroll-margin-top: 6rem; }
+
+      /* Print-friendly */
+      @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; color: black !important; }
+      }
+    </style>
+</head>
+<body class="bg-white text-ibm-gray100 dark:bg-ibm-gray100 dark:text-ibm-gray10 antialiased">
+
+<!-- ====================== TOP BAR ====================== -->
+<header class="no-print fixed top-0 inset-x-0 z-40 bg-white/95 dark:bg-ibm-gray100/95 backdrop-blur border-b border-ibm-gray20 dark:border-ibm-gray80">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+        <button id="tocToggle" class="lg:hidden inline-flex items-center justify-center w-9 h-9 -ml-1 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90" aria-label="Open table of contents">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+
+        <a href="#top" class="flex items-center gap-2.5 font-semibold tracking-tight">
+            <span class="inline-flex items-center justify-center w-7 h-7 bg-ibm-blue60 text-white text-xs font-bold">SJ</span>
+            <span class="hidden sm:inline">Secure Java <span class="text-ibm-gray50 font-normal">/ Build Guide</span></span>
+        </a>
+
+        <nav class="ml-auto flex items-center gap-1">
+            <a href="#checkers" class="hidden md:inline-block px-3 py-1.5 text-sm hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">Checkers</a>
+            <a href="#process" class="hidden md:inline-block px-3 py-1.5 text-sm hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">Process</a>
+            <a href="#examples" class="hidden md:inline-block px-3 py-1.5 text-sm hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">Examples</a>
+            <a href="#references" class="hidden md:inline-block px-3 py-1.5 text-sm hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">References</a>
+
+            <button id="themeToggle" class="ml-1 inline-flex items-center justify-center w-9 h-9 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90" aria-label="Toggle dark mode">
+                <svg class="dark:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg class="hidden dark:block" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            </button>
+        </nav>
+    </div>
+</header>
+
+<!-- ====================== LAYOUT ====================== -->
+<div id="top" class="max-w-[1400px] mx-auto px-4 sm:px-6 pt-14">
+    <div class="lg:grid lg:grid-cols-[260px_1fr] lg:gap-10">
+
+        <!-- ====================== SIDEBAR TOC ====================== -->
+        <aside id="toc" class="drawer lg:drawer-none fixed lg:sticky inset-y-0 left-0 top-14 lg:top-14 z-30 lg:z-auto w-[280px] lg:w-auto h-[calc(100vh-3.5rem)] overflow-y-auto bg-white dark:bg-ibm-gray100 lg:bg-transparent border-r border-ibm-gray20 dark:border-ibm-gray80 lg:border-r-0 px-5 py-6 closed lg:!translate-x-0">
+            <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-3">Contents</p>
+            <nav class="toc text-sm space-y-0.5">
+                <a href="#intro" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Overview</a>
+                <a href="#quick-start" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Quick start</a>
+                <a href="#stack" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">The stack</a>
+                <a href="#why" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Why this matters</a>
+
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mt-5 mb-2">The checkers</p>
+                <a href="#checkers" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">All checkers</a>
+                <a href="#checkstyle" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— Checkstyle</a>
+                <a href="#pmd" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— PMD</a>
+                <a href="#spotbugs" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— SpotBugs</a>
+                <a href="#findsecbugs" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— Find Security Bugs</a>
+                <a href="#owasp-dc" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— OWASP Dependency-Check</a>
+                <a href="#jacoco" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40 text-ibm-gray70 dark:text-ibm-gray30">— JaCoCo</a>
+
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mt-5 mb-2">Practice</p>
+                <a href="#process" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Secure dev process</a>
+                <a href="#examples" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Good vs bad code</a>
+                <a href="#demo-app" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Demo bad classes</a>
+
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mt-5 mb-2">Reference</p>
+                <a href="#cwe-table" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">CWE / CVE table</a>
+                <a href="#references" class="block border-l-2 border-transparent pl-3 py-1.5 hover:text-ibm-blue60 dark:hover:text-ibm-blue40">Further reading</a>
+            </nav>
+        </aside>
+
+        <!-- Backdrop for mobile drawer -->
+        <div id="tocBackdrop" class="hidden fixed inset-0 z-20 bg-black/40 lg:hidden"></div>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="min-w-0 pb-24 pt-2 lg:pt-8">
+
+            <!-- ============== HERO / INTRO ============== -->
+            <section id="intro" class="anchor relative grid-bg -mx-4 sm:-mx-6 px-4 sm:px-6 py-10 sm:py-16 border-b border-ibm-gray20 dark:border-ibm-gray80">
+                <div class="max-w-3xl">
+                    <div class="flex items-center gap-2 text-xs font-medium text-ibm-blue70 dark:text-ibm-blue40 mb-4">
+                        <span class="inline-block w-6 h-px bg-ibm-blue60"></span>
+                        <span class="uppercase tracking-widest">Build Guide · v1.0</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-light leading-tight tracking-tight mb-5">
+                        Building <span class="font-semibold">secure Java&nbsp;25</span> applications with quality and security checkers.
+                    </h1>
+                    <p class="text-base sm:text-lg text-ibm-gray70 dark:text-ibm-gray30 leading-relaxed mb-7">
+                        A practical, defense-in-depth setup for Spring Boot 4 projects. Six tools, one Maven build, every commit verified against the same bar that catches CVEs, weak crypto, injection flaws, and style drift before they reach production.
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="#quick-start" class="inline-flex items-center gap-2 bg-ibm-blue60 hover:bg-ibm-blue70 text-white font-medium px-5 py-3">
+                            Quick start
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </a>
+                        <a href="#checkers" class="inline-flex items-center gap-2 border border-ibm-gray30 dark:border-ibm-gray70 px-5 py-3 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90 font-medium">
+                            Browse the checkers
+                        </a>
+                    </div>
+                    <div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ibm-gray70 dark:text-ibm-gray30">
+                        <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-ibm-green60"></span>Java 25</span>
+                        <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-ibm-green60"></span>Spring Boot 4.0.4</span>
+                        <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-ibm-green60"></span>Maven 3.9+</span>
+                        <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-ibm-green60"></span>6 quality gates</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== QUICK START ============== -->
+            <section id="quick-start" class="anchor py-12 sm:py-16">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">01 · Get going</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-6">Quick start</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 mb-6 max-w-3xl">Three commands. The first run of the full verify will be slow because OWASP Dependency-Check downloads the NVD database — set <code>NVD_API_KEY</code> first to avoid rate limiting.</p>
+
+                <div class="space-y-5 max-w-3xl">
+                    <div>
+                        <p class="text-sm font-medium mb-2 text-ibm-gray70 dark:text-ibm-gray30">1. Run the app</p>
+                        <pre><code class="language-bash">mvn spring-boot:run</code></pre>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium mb-2 text-ibm-gray70 dark:text-ibm-gray30">2. Run all quality + security gates</p>
+                        <pre><code class="language-bash">export NVD_API_KEY="your-key-here"   # get one from nvd.nist.gov
+mvn clean verify</code></pre>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium mb-2 text-ibm-gray70 dark:text-ibm-gray30">3. Fast inner loop (skip CVE scan)</p>
+                        <pre><code class="language-bash">mvn verify -Ddependency-check.skip=true</code></pre>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-ibm-blue10 dark:bg-ibm-blue90/30 border-l-4 border-ibm-blue60 px-5 py-4 max-w-3xl">
+                    <p class="text-sm"><strong>Reports land in <code>target/</code> after verify:</strong> <code>jacoco/index.html</code>, <code>spotbugs.html</code>, <code>checkstyle-result.xml</code>, <code>pmd.xml</code>, <code>dependency-check-report.html</code>.</p>
+                </div>
+            </section>
+
+            <!-- ============== THE STACK ============== -->
+            <section id="stack" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">02 · The stack</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-6">What's underneath</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 mb-8 max-w-3xl">
+                    Java 25 is an LTS release with virtual threads, pattern matching, records, sealed classes, and stricter defaults around security primitives. Spring Boot 4 modularized its starters — <code>spring-boot-starter-web</code> became <code>spring-boot-starter-webmvc</code>, and many auto-configuration packages moved to web-stack-specific namespaces.
+                </p>
+
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="ibm-card border border-ibm-gray20 dark:border-ibm-gray80 p-5">
+                        <p class="text-xs text-ibm-gray50 mb-2 uppercase tracking-wide">Runtime</p>
+                        <p class="text-lg font-semibold mb-1">Java 25 LTS</p>
+                        <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30">Virtual threads, pattern matching for switch, records, sealed types, stricter SecureRandom defaults.</p>
+                    </div>
+                    <div class="ibm-card border border-ibm-gray20 dark:border-ibm-gray80 p-5">
+                        <p class="text-xs text-ibm-gray50 mb-2 uppercase tracking-wide">Framework</p>
+                        <p class="text-lg font-semibold mb-1">Spring Boot 4.0.4</p>
+                        <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30">Modular starters, Spring Framework 7, native AOT, refreshed observability stack.</p>
+                    </div>
+                    <div class="ibm-card border border-ibm-gray20 dark:border-ibm-gray80 p-5">
+                        <p class="text-xs text-ibm-gray50 mb-2 uppercase tracking-wide">Build</p>
+                        <p class="text-lg font-semibold mb-1">Maven 3.9+</p>
+                        <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30">Verify phase wired to JaCoCo, Checkstyle, PMD, SpotBugs+FindSecBugs, OWASP DC.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== WHY THIS MATTERS ============== -->
+            <section id="why" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">03 · Rationale</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-6">Why catch this at build time</h2>
+
+                <div class="grid md:grid-cols-2 gap-x-10 gap-y-6 max-w-4xl text-ibm-gray70 dark:text-ibm-gray30">
+                    <p>The cost of fixing a vulnerability multiplies the further it travels. A weak hash in a developer's branch is a one-line change. The same code, deployed and breached, is a regulator notification, a press cycle, and months of forensic work.</p>
+                    <p>Build-time gates compress that loop. Every <code>mvn verify</code> is a chance to catch the issue before it leaves the developer's machine — and a chance to catch it consistently across every developer, every branch, every CI run.</p>
+                    <p>Static checkers won't find every bug. They will find a large class of <em>common, mechanical</em> mistakes — the ones humans miss in review because they're tedious to look for. SQL string concatenation. <code>MessageDigest.getInstance("MD5")</code>. A Jackson library four CVEs out of date.</p>
+                    <p>This setup composes six checkers that overlap intentionally. Defense in depth at the build layer, the same way you'd apply it at the network or runtime layers.</p>
+                </div>
+
+                <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="ibm-card bg-ibm-gray10 dark:bg-ibm-gray90 p-5">
+                        <p class="text-3xl font-light text-ibm-blue60 dark:text-ibm-blue40 mb-1">~400</p>
+                        <p class="text-sm">SpotBugs bug patterns</p>
+                    </div>
+                    <div class="ibm-card bg-ibm-gray10 dark:bg-ibm-gray90 p-5">
+                        <p class="text-3xl font-light text-ibm-blue60 dark:text-ibm-blue40 mb-1">128+</p>
+                        <p class="text-sm">FindSecBugs vulnerability types</p>
+                    </div>
+                    <div class="ibm-card bg-ibm-gray10 dark:bg-ibm-gray90 p-5">
+                        <p class="text-3xl font-light text-ibm-blue60 dark:text-ibm-blue40 mb-1">200k+</p>
+                        <p class="text-sm">CVEs in the NVD feed</p>
+                    </div>
+                    <div class="ibm-card bg-ibm-gray10 dark:bg-ibm-gray90 p-5">
+                        <p class="text-3xl font-light text-ibm-blue60 dark:text-ibm-blue40 mb-1">PMD 7</p>
+                        <p class="text-sm">Java 25 source-level rules</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============== THE CHECKERS ============== -->
+            <section id="checkers" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">04 · The toolchain</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-3">The six checkers</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 max-w-3xl mb-10">Each tool covers a different layer. Together they form the build-time security and quality gate. Click <em>What &amp; why</em> on any card for deeper detail.</p>
+
+                <!-- CHECKSTYLE -->
+                <article id="checkstyle" class="anchor mb-12 ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30">Style</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Source</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">Checkstyle</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">Enforces a coding style — formatting, naming, javadoc, structural rules.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-checkstyle">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it catches:</strong> inconsistent indentation, line length, missing javadoc on public APIs, illegal imports, magic numbers, badly-named classes/methods/constants, switch statements without default, empty blocks.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Config:</strong> <code>config/checkstyle.xml</code>. The project ships a sensible default; you can also start from <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://checkstyle.sourceforge.io/google_style.html" target="_blank" rel="noopener">Google Java Style</a> or <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://checkstyle.sourceforge.io/sun_style.html" target="_blank" rel="noopener">Sun Java Style</a>.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Phase:</strong> <code>verify</code>. Fails the build on any violation by default.</p>
+                    </div>
+                </article>
+
+                <!-- PMD -->
+                <article id="pmd" class="anchor mb-12 ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30">Static analysis</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Source</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">PMD</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">Source-level static analysis. Design smells, error-prone patterns, dead code, copy-paste.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-pmd">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Rulesets enabled:</strong> <code>bestpractices</code>, <code>errorprone</code>, <code>security</code>, <code>multithreading</code>, <code>performance</code>. Plus <code>cpd-check</code> for copy-pasted code blocks.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it catches:</strong> empty catch blocks, unused private fields, suspicious string-to-BigDecimal, modifying a collection while iterating, returning <code>null</code> from a <code>Collection</code> method, missing <code>break</code> in switches.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Complements SpotBugs:</strong> PMD reads source (sees comments, formatting, design intent). SpotBugs reads bytecode (sees what actually executes). Running both is the standard pairing.</p>
+                    </div>
+                </article>
+
+                <!-- SPOTBUGS -->
+                <article id="spotbugs" class="anchor mb-12 ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30">Static analysis</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Bytecode</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">SpotBugs</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">Bytecode-level bug pattern detection — the successor to FindBugs.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-spotbugs">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it catches:</strong> null-pointer dereferences, infinite recursion, comparing <code>String</code> with <code>==</code>, ignored return values, mutable static fields, resource leaks, broken <code>equals</code>/<code>hashCode</code>.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Configured at:</strong> <code>effort=Max</code>, <code>threshold=Low</code> — most thorough, lowest bar to report. Pairs with FindSecBugs (next).</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Bytecode-level advantage:</strong> sees what the compiler actually produced, including issues that only appear after lambda desugaring, autoboxing, or generic erasure.</p>
+                    </div>
+                </article>
+
+                <!-- FINDSECBUGS -->
+                <article id="findsecbugs" class="anchor mb-12 ibm-card border-2 border-ibm-blue60 dark:border-ibm-blue50">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between bg-ibm-blue10/40 dark:bg-ibm-blue90/20">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-red60 text-white">Security</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Bytecode</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">Find Security Bugs</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">SpotBugs plugin focused on OWASP Top 10 security defects in Java code.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-findsecbugs">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">128+ vulnerability types</strong> across 826+ API signatures. Covers Spring MVC, Servlets, Hibernate, JAX-RS, and more.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Categories:</strong> SQL/HQL injection, XSS, command injection, path traversal, XXE, SSRF, insecure deserialization, weak cryptography (MD5, DES, ECB), weak random for security tokens, hard-coded credentials, predictable HTTP cookies, weak TLS.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Taint analysis:</strong> follows untrusted input from request entry points through method calls to dangerous sinks — catches injection paths that aren't visible from a single method.</p>
+                    </div>
+                </article>
+
+                <!-- OWASP DC -->
+                <article id="owasp-dc" class="anchor mb-12 ibm-card border-2 border-ibm-blue60 dark:border-ibm-blue50">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between bg-ibm-blue10/40 dark:bg-ibm-blue90/20">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-red60 text-white">Security</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Dependencies</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">OWASP Dependency-Check</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">Software Composition Analysis (SCA). Scans every JAR for known CVEs.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-owasp">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">How it works:</strong> identifies each dependency's CPE (Common Platform Enumeration), then cross-references against the NIST National Vulnerability Database to find associated CVEs.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Threshold:</strong> build fails on <code>CVSS &gt;= 7</code> (High/Critical). Adjust via <code>dependency-check.failBuildOnCVSS</code> property.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Outputs:</strong> HTML for humans, JSON for tooling, SARIF for GitHub Code Scanning upload.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">False positives:</strong> manage via <code>config/owasp-suppressions.xml</code>. Justify each suppression and set an expiry.</p>
+                    </div>
+                </article>
+
+                <!-- JACOCO -->
+                <article id="jacoco" class="anchor mb-4 ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                    <header class="p-6 border-b border-ibm-gray20 dark:border-ibm-gray80 flex flex-wrap items-start gap-4 justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30">Coverage</span>
+                                <span class="pill bg-ibm-blue10 dark:bg-ibm-blue90/30 text-ibm-blue70 dark:text-ibm-blue40">Runtime</span>
+                            </div>
+                            <h3 class="text-xl font-semibold">JaCoCo</h3>
+                            <p class="text-sm text-ibm-gray70 dark:text-ibm-gray30 mt-1">Test coverage measurement and threshold enforcement.</p>
+                        </div>
+                        <button class="more-btn text-sm font-medium text-ibm-blue60 dark:text-ibm-blue40 hover:underline" data-modal="m-jacoco">What &amp; why →</button>
+                    </header>
+                    <div class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-3">
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it measures:</strong> instruction, branch, line, complexity, method, and class coverage. We enforce 70% instruction coverage at the bundle level.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Why it matters for security:</strong> uncovered code paths often hide poor input validation. Coverage isn't a security tool, but low coverage on critical paths is a smell — the SAST tools above only flag what they can prove; tests exercise what's left.</p>
+                        <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Report:</strong> <code>target/site/jacoco/index.html</code>.</p>
+                    </div>
+                </article>
+
+            </section>
+
+            <!-- ============== SECURE DEV PROCESS ============== -->
+            <section id="process" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">05 · Practice</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-6">Secure development workflow</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 max-w-3xl mb-10">Tools find what tools can find. The rest is process. Each phase below has a small number of disciplined practices — pick the ones that fit your team and apply them consistently.</p>
+
+                <!-- Phase grid -->
+                <div class="space-y-1 max-w-4xl">
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px" open>
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">01</span>
+                            <span class="font-semibold flex-1">Before you write code — design & threat model</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>Sketch the data flow. Where does untrusted input enter? Where does it cross a trust boundary? Where does sensitive data leave the system?</p>
+                            <p>Apply <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://owasp.org/www-community/Threat_Modeling_Process" target="_blank" rel="noopener">STRIDE</a> at the feature level: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege. Two of the six usually apply — write down which.</p>
+                            <p>Choose the safe default before you start typing — parameterized queries, allowlists for path inputs, <code>SecureRandom</code> over <code>Random</code> for anything security-adjacent.</p>
+                        </div>
+                    </details>
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px">
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">02</span>
+                            <span class="font-semibold flex-1">In the IDE — fast feedback while typing</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>Install the matching IDE plugins so issues show up as you write, not at <code>mvn verify</code>:</p>
+                            <ul class="list-disc list-inside space-y-1 ml-2">
+                                <li>IntelliJ: <em>SpotBugs</em>, <em>CheckStyle-IDEA</em>, <em>PMDPlugin</em>, <em>SonarLint</em></li>
+                                <li>VS Code: <em>SonarLint</em>, <em>Checkstyle for Java</em>, <em>SpotBugs</em></li>
+                                <li>Eclipse: <em>SpotBugs Eclipse Plugin</em>, <em>eclipse-cs</em></li>
+                            </ul>
+                            <p>Point each plugin at the same config files the Maven build uses (<code>config/checkstyle.xml</code>, the PMD ruleset). One source of truth, no surprises in CI.</p>
+                        </div>
+                    </details>
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px">
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">03</span>
+                            <span class="font-semibold flex-1">Before commit — pre-commit hooks & local verify</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>Run <code>mvn verify -Ddependency-check.skip=true</code> before pushing. Fast (~30 sec on this project), catches everything except the CVE scan.</p>
+                            <p>Adopt a pre-commit hook (e.g. <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://pre-commit.com" target="_blank" rel="noopener">pre-commit</a> framework) that runs Checkstyle and SpotBugs on staged Java files only.</p>
+                            <p>Run <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://github.com/gitleaks/gitleaks" target="_blank" rel="noopener">gitleaks</a> or <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://github.com/trufflesecurity/trufflehog" target="_blank" rel="noopener">trufflehog</a> as a pre-commit step. Static analyzers find hardcoded credentials in <em>code</em>; secret scanners find them in <em>everything else</em>.</p>
+                        </div>
+                    </details>
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px">
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">04</span>
+                            <span class="font-semibold flex-1">In code review — what humans should check</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>Reviewers focus on what tools can't see: business logic, trust assumptions, authorization checks at the right layer, error handling that doesn't leak information.</p>
+                            <p>Specific things to ask in every Java PR: <em>Is every external input validated at the boundary? Are exceptions logged without leaking secrets or stack traces to clients? Is every new dependency necessary? Is every new <code>@Suppress*</code> annotation justified in a comment?</em></p>
+                            <p>If the PR adds an OWASP suppression, the reviewer reads the justification and checks the expiry date.</p>
+                        </div>
+                    </details>
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px">
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">05</span>
+                            <span class="font-semibold flex-1">In CI — the same gate, for everyone</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>CI runs <code>mvn clean verify</code> with no skips. The OWASP NVD cache lives in CI cache storage between runs (~600MB).</p>
+                            <p>Upload the SARIF report from Dependency-Check to GitHub Code Scanning so findings appear on the Security tab and can be tracked over time.</p>
+                            <p>Run <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://docs.github.com/en/code-security/dependabot/working-with-dependabot/managing-pull-requests-for-dependency-updates" target="_blank" rel="noopener">Dependabot</a> or <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://docs.renovatebot.com" target="_blank" rel="noopener">Renovate</a> in parallel — they keep dependencies fresh; OWASP DC catches the ones that slipped through.</p>
+                        </div>
+                    </details>
+
+                    <details class="group border border-ibm-gray20 dark:border-ibm-gray80 -mt-px">
+                        <summary class="cursor-pointer list-none p-5 flex items-center gap-4 hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90">
+                            <span class="text-ibm-blue60 dark:text-ibm-blue40 font-mono text-sm w-8">06</span>
+                            <span class="font-semibold flex-1">After deploy — runtime monitoring & DAST</span>
+                            <svg class="transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="px-5 pb-5 pl-16 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-2">
+                            <p>SAST (the tools on this page) is half the picture. The other half is DAST — exercise the running app: <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://www.zaproxy.org" target="_blank" rel="noopener">OWASP ZAP</a> or <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://portswigger.net/burp" target="_blank" rel="noopener">Burp Suite</a> against the deployed staging build.</p>
+                            <p>Wire runtime CVE alerts: <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://github.com/aquasecurity/trivy" target="_blank" rel="noopener">Trivy</a> on the deployed container image catches what slipped past the JAR-level scan.</p>
+                            <p>Have an SBOM. <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener">CycloneDX</a> Maven plugin emits one each build. If a future CVE drops on something you ship, you can answer "are we affected?" in seconds.</p>
+                        </div>
+                    </details>
+                </div>
+            </section>
+
+            <!-- ============== GOOD VS BAD CODE ============== -->
+            <section id="examples" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">06 · Patterns</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-3">Good vs bad code</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 max-w-3xl mb-10">The same six issues show up in nearly every Java codebase. For each: what the checker reports, the bad version, the good version, the CWE.</p>
+
+                <!-- SQL Injection -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">SQL injection</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-89</a>
+                        <span class="pill bg-ibm-red60 text-white">Critical</span>
+                        <span class="text-xs text-ibm-gray50">Caught by FindSecBugs (<code>SQL_INJECTION_JDBC</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// Concatenating user input into SQL = injection.
+public List&lt;User&gt; findByName(String name) {
+    String sql = "SELECT * FROM users WHERE name = '" + name + "'";
+    return jdbc.query(sql, USER_ROW_MAPPER);
+}
+// name = "x' OR '1'='1" returns the whole table.</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">// Parameterized query. The driver escapes input correctly.
+public List&lt;User&gt; findByName(String name) {
+    String sql = "SELECT * FROM users WHERE name = ?";
+    return jdbc.query(sql, USER_ROW_MAPPER, name);
+}</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Weak Crypto -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">Weak cryptography</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/327.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-327</a>
+                        <span class="pill bg-ibm-red60 text-white">High</span>
+                        <span class="text-xs text-ibm-gray50">FindSecBugs (<code>WEAK_MESSAGE_DIGEST_MD5</code>, <code>CIPHER_INTEGRITY</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// MD5 has been broken for password hashing for decades.
+// DES is 56-bit. ECB mode reveals patterns in plaintext.
+MessageDigest md = MessageDigest.getInstance("MD5");
+Cipher c = Cipher.getInstance("DES/ECB/PKCS5Padding");</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">// SHA-256+ for hashing. Argon2/BCrypt for passwords.
+// AES-256-GCM for authenticated encryption.
+MessageDigest md = MessageDigest.getInstance("SHA-256");
+Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+// Use a per-message random 12-byte IV with GCM.</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Path Traversal -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">Path traversal</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/22.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-22</a>
+                        <span class="pill bg-ibm-red60 text-white">High</span>
+                        <span class="text-xs text-ibm-gray50">FindSecBugs (<code>PATH_TRAVERSAL_IN</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// User-controlled filename, no validation.
+// filename = "../../etc/passwd" reads outside the upload dir.
+Path file = Paths.get("/var/uploads", filename);
+return Files.readAllBytes(file);</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">// Resolve, normalize, then verify the result is inside the root.
+Path root = Paths.get("/var/uploads").toAbsolutePath().normalize();
+Path file = root.resolve(filename).normalize();
+if (!file.startsWith(root)) {
+    throw new SecurityException("Path traversal attempt");
+}
+return Files.readAllBytes(file);</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Hardcoded Credentials -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">Hardcoded credentials</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/798.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-798</a>
+                        <span class="pill bg-ibm-red60 text-white">Critical</span>
+                        <span class="text-xs text-ibm-gray50">FindSecBugs (<code>HARD_CODE_PASSWORD</code>, <code>HARD_CODE_KEY</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// In source. In git history. In every backup forever.
+private static final String DB_PASSWORD = "Pa55word!";
+private static final String API_KEY = "sk_live_a1b2c3d4...";</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">// Inject from environment / secret manager / Spring config.
+@Value("${db.password}")     // Spring resolves from env/vault
+private String dbPassword;
+
+// Or via Spring Cloud Vault, AWS Secrets Manager, etc.</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Empty catch -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">Swallowed exceptions</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/390.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-390</a>
+                        <span class="pill bg-ibm-yellow30 text-ibm-gray100">Medium</span>
+                        <span class="text-xs text-ibm-gray50">PMD (<code>EmptyCatchBlock</code>), SpotBugs (<code>DE_MIGHT_IGNORE</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Bad</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Good</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">try {
+    riskyOperation();
+} catch (IOException e) {
+    // ignore - we'll just continue
+}
+// Now the failure mode is silent. Good luck debugging.</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">try {
+    riskyOperation();
+} catch (IOException e) {
+    log.warn("Operation failed, continuing with default", e);
+    // OR: throw new ServiceException("operation failed", e);
+}</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Insecure random -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">Insecure randomness for security tokens</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/338.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-338</a>
+                        <span class="pill bg-ibm-red60 text-white">High</span>
+                        <span class="text-xs text-ibm-gray50">FindSecBugs (<code>PREDICTABLE_RANDOM</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// java.util.Random is predictable from a few samples.
+Random r = new Random();
+String token = Long.toHexString(r.nextLong());  // session token</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">// SecureRandom is the only choice for tokens, salts, IVs, nonces.
+SecureRandom r = new SecureRandom();
+byte[] bytes = new byte[32];
+r.nextBytes(bytes);
+String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- XXE -->
+                <article class="mb-10">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <h3 class="text-lg font-semibold">XML External Entity (XXE)</h3>
+                        <a href="https://cwe.mitre.org/data/definitions/611.html" target="_blank" rel="noopener" class="pill bg-ibm-gray10 dark:bg-ibm-gray90 text-ibm-gray70 dark:text-ibm-gray30 hover:bg-ibm-blue10">CWE-611</a>
+                        <span class="pill bg-ibm-red60 text-white">High</span>
+                        <span class="text-xs text-ibm-gray50">FindSecBugs (<code>XXE_DOCUMENT</code>, <code>XXE_SAXPARSER</code>)</span>
+                    </div>
+                    <div class="example-block ibm-card border border-ibm-gray20 dark:border-ibm-gray80">
+                        <div class="flex border-b border-ibm-gray20 dark:border-ibm-gray80">
+                            <button class="tab-btn active px-4 py-2 text-sm font-medium border-r border-ibm-gray20 dark:border-ibm-gray80" data-tab="bad">✕ Vulnerable</button>
+                            <button class="tab-btn px-4 py-2 text-sm font-medium" data-tab="good">✓ Safe</button>
+                        </div>
+                        <div class="tab-content" data-tab="bad">
+<pre><code class="language-java">// Default parser resolves external entities — file read / SSRF.
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+DocumentBuilder db = dbf.newDocumentBuilder();
+Document doc = db.parse(input);</code></pre>
+                        </div>
+                        <div class="tab-content hidden" data-tab="good">
+<pre><code class="language-java">DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+dbf.setXIncludeAware(false);
+dbf.setExpandEntityReferences(false);
+DocumentBuilder db = dbf.newDocumentBuilder();
+Document doc = db.parse(input);</code></pre>
+                        </div>
+                    </div>
+                </article>
+
+            </section>
+
+            <!-- ============== DEMO APP ============== -->
+            <section id="demo-app" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">07 · See it in action</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-6">The deliberately-broken classes</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 max-w-3xl mb-6">
+                    The project ships a package <code>com.zactonics.demo.badexamples</code> with five classes that each break the build in a different way. Run <code>mvn verify</code> and watch the checkers fire.
+                </p>
+
+                <div class="bg-ibm-yellow30/20 border-l-4 border-ibm-yellow30 px-5 py-4 max-w-3xl mb-8">
+                    <p class="text-sm"><strong>The build will fail with these files in place.</strong> That's the demonstration. To make the build pass for real development, either delete the <code>badexamples</code> folder or add an <code>&lt;excludes&gt;</code> filter to each checker plugin. Keep them while learning.</p>
+                </div>
+
+                <div class="overflow-x-auto -mx-4 sm:mx-0">
+                    <table class="w-full text-sm min-w-[640px]">
+                        <thead>
+                            <tr class="text-left border-b-2 border-ibm-gray100 dark:border-ibm-gray10">
+                                <th class="py-3 pr-4 font-semibold">Class</th>
+                                <th class="py-3 pr-4 font-semibold">Issue</th>
+                                <th class="py-3 pr-4 font-semibold">Caught by</th>
+                                <th class="py-3 font-semibold">CWE</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-ibm-gray20 dark:divide-ibm-gray80">
+                            <tr><td class="py-3 pr-4 font-mono text-xs">SqlInjectionExample</td><td class="py-3 pr-4">String-concatenated SQL</td><td class="py-3 pr-4">FindSecBugs</td><td class="py-3"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" rel="noopener">CWE-89</a></td></tr>
+                            <tr><td class="py-3 pr-4 font-mono text-xs">WeakCryptoExample</td><td class="py-3 pr-4">MD5, DES, ECB, hardcoded key</td><td class="py-3 pr-4">FindSecBugs</td><td class="py-3"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/327.html" target="_blank" rel="noopener">CWE-327</a>, <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/798.html" target="_blank" rel="noopener">CWE-798</a></td></tr>
+                            <tr><td class="py-3 pr-4 font-mono text-xs">PathTraversalExample</td><td class="py-3 pr-4">Unsafe file path from input</td><td class="py-3 pr-4">FindSecBugs</td><td class="py-3"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/22.html" target="_blank" rel="noopener">CWE-22</a></td></tr>
+                            <tr><td class="py-3 pr-4 font-mono text-xs">BadStyleExample</td><td class="py-3 pr-4">Naming, long lines, no javadoc, magic numbers</td><td class="py-3 pr-4">Checkstyle, PMD</td><td class="py-3">—</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono text-xs">BuggyCodeExample</td><td class="py-3 pr-4">Empty catch, null deref, unused field, == on strings</td><td class="py-3 pr-4">SpotBugs, PMD</td><td class="py-3"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/476.html" target="_blank" rel="noopener">CWE-476</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-8">
+                    <p class="text-sm font-medium mb-2 text-ibm-gray70 dark:text-ibm-gray30">Try it:</p>
+                    <pre><code class="language-bash">mvn verify -Ddependency-check.skip=true 2>&amp;1 | grep -E "(ERROR|violation|bug)"</code></pre>
+                </div>
+            </section>
+
+            <!-- ============== CWE / CVE TABLE ============== -->
+            <section id="cwe-table" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">08 · Reference</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-3">Java-relevant CWEs &amp; recent CVEs</h2>
+                <p class="text-ibm-gray70 dark:text-ibm-gray30 max-w-3xl mb-8">A starter list of weakness categories the checkers cover and notable Java-ecosystem CVEs to know.</p>
+
+                <h3 class="text-lg font-semibold mb-3">Common Weakness Enumeration (CWE)</h3>
+                <div class="overflow-x-auto -mx-4 sm:mx-0 mb-12">
+                    <table class="w-full text-sm min-w-[640px]">
+                        <thead>
+                            <tr class="text-left border-b-2 border-ibm-gray100 dark:border-ibm-gray10">
+                                <th class="py-3 pr-4 font-semibold">CWE</th>
+                                <th class="py-3 pr-4 font-semibold">Name</th>
+                                <th class="py-3 pr-4 font-semibold">Why it matters in Java</th>
+                                <th class="py-3 font-semibold">Tool</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-ibm-gray20 dark:divide-ibm-gray80">
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/22.html" target="_blank" rel="noopener">CWE-22</a></td><td class="py-3 pr-4">Path Traversal</td><td class="py-3 pr-4">File uploads / downloads with user-controlled names</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/77.html" target="_blank" rel="noopener">CWE-77</a></td><td class="py-3 pr-4">Command Injection</td><td class="py-3 pr-4"><code>Runtime.exec</code>, <code>ProcessBuilder</code> with concatenated args</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/79.html" target="_blank" rel="noopener">CWE-79</a></td><td class="py-3 pr-4">XSS</td><td class="py-3 pr-4">Servlet output without HTML-escaping</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" rel="noopener">CWE-89</a></td><td class="py-3 pr-4">SQL Injection</td><td class="py-3 pr-4">JDBC, JPQL, HQL with string concat</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/295.html" target="_blank" rel="noopener">CWE-295</a></td><td class="py-3 pr-4">Improper Cert Validation</td><td class="py-3 pr-4">Custom <code>TrustManager</code> that trusts everything</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/327.html" target="_blank" rel="noopener">CWE-327</a></td><td class="py-3 pr-4">Broken / Risky Crypto</td><td class="py-3 pr-4">MD5, SHA-1, DES, RC4, ECB mode</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/338.html" target="_blank" rel="noopener">CWE-338</a></td><td class="py-3 pr-4">Weak PRNG for Security</td><td class="py-3 pr-4"><code>Random</code> instead of <code>SecureRandom</code> for tokens</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/352.html" target="_blank" rel="noopener">CWE-352</a></td><td class="py-3 pr-4">CSRF</td><td class="py-3 pr-4">Spring Security CSRF disabled without justification</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/502.html" target="_blank" rel="noopener">CWE-502</a></td><td class="py-3 pr-4">Insecure Deserialization</td><td class="py-3 pr-4"><code>ObjectInputStream</code> on untrusted bytes</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/611.html" target="_blank" rel="noopener">CWE-611</a></td><td class="py-3 pr-4">XXE</td><td class="py-3 pr-4">XML parsers with external entity resolution on</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/798.html" target="_blank" rel="noopener">CWE-798</a></td><td class="py-3 pr-4">Hardcoded Credentials</td><td class="py-3 pr-4">Keys, passwords, API tokens in source</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/918.html" target="_blank" rel="noopener">CWE-918</a></td><td class="py-3 pr-4">SSRF</td><td class="py-3 pr-4">User-controlled URLs passed to HTTP clients</td><td class="py-3">FindSecBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/476.html" target="_blank" rel="noopener">CWE-476</a></td><td class="py-3 pr-4">Null Pointer Dereference</td><td class="py-3 pr-4">Classic Java <code>NullPointerException</code> sources</td><td class="py-3">SpotBugs</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://cwe.mitre.org/data/definitions/390.html" target="_blank" rel="noopener">CWE-390</a></td><td class="py-3 pr-4">Improper Exception Handling</td><td class="py-3 pr-4">Empty catch, swallowed exceptions</td><td class="py-3">PMD, SpotBugs</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-lg font-semibold mb-3">Notable Java-ecosystem CVEs to know</h3>
+                <div class="overflow-x-auto -mx-4 sm:mx-0">
+                    <table class="w-full text-sm min-w-[640px]">
+                        <thead>
+                            <tr class="text-left border-b-2 border-ibm-gray100 dark:border-ibm-gray10">
+                                <th class="py-3 pr-4 font-semibold">CVE</th>
+                                <th class="py-3 pr-4 font-semibold">Library</th>
+                                <th class="py-3 pr-4 font-semibold">Lesson</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-ibm-gray20 dark:divide-ibm-gray80">
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank" rel="noopener">CVE-2021-44228</a></td><td class="py-3 pr-4">Log4j 2 (Log4Shell)</td><td class="py-3 pr-4">Log4j JNDI lookup → RCE. The case study for SCA.</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2022-22965" target="_blank" rel="noopener">CVE-2022-22965</a></td><td class="py-3 pr-4">Spring Core (Spring4Shell)</td><td class="py-3 pr-4">Data binding → RCE on Tomcat. Patch Spring promptly.</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2017-5638" target="_blank" rel="noopener">CVE-2017-5638</a></td><td class="py-3 pr-4">Apache Struts</td><td class="py-3 pr-4">OGNL injection → RCE. Equifax breach root cause.</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2017-7525" target="_blank" rel="noopener">CVE-2017-7525</a></td><td class="py-3 pr-4">Jackson-databind</td><td class="py-3 pr-4">Polymorphic deserialization → RCE. Disable default typing.</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2023-44487" target="_blank" rel="noopener">CVE-2023-44487</a></td><td class="py-3 pr-4">HTTP/2 (Rapid Reset)</td><td class="py-3 pr-4">Protocol-level DoS. Patch Netty/Tomcat/Jetty.</td></tr>
+                            <tr><td class="py-3 pr-4 font-mono"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/vuln/detail/CVE-2024-38816" target="_blank" rel="noopener">CVE-2024-38816</a></td><td class="py-3 pr-4">Spring Framework</td><td class="py-3 pr-4">Path traversal in static resource handling.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============== FURTHER READING ============== -->
+            <section id="references" class="anchor py-12 sm:py-16 border-t border-ibm-gray20 dark:border-ibm-gray80">
+                <p class="text-xs uppercase tracking-widest text-ibm-gray50 font-semibold mb-2">09 · Read more</p>
+                <h2 class="text-2xl sm:text-3xl font-semibold mb-8">Further reading</h2>
+
+                <div class="grid sm:grid-cols-2 gap-x-10 gap-y-8 max-w-4xl">
+                    <div>
+                        <h4 class="font-semibold mb-3 text-ibm-blue60 dark:text-ibm-blue40">Standards &amp; guidelines</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a class="hover:underline" href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener">OWASP Top 10 (2021)</a> · The canonical list</li>
+                            <li><a class="hover:underline" href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a> · Application Security Verification Standard</li>
+                            <li><a class="hover:underline" href="https://cheatsheetseries.owasp.org/" target="_blank" rel="noopener">OWASP Cheat Sheet Series</a> · Per-topic guidance</li>
+                            <li><a class="hover:underline" href="https://wiki.sei.cmu.edu/confluence/display/java/SEI+CERT+Oracle+Coding+Standard+for+Java" target="_blank" rel="noopener">SEI CERT Oracle Coding Standard for Java</a></li>
+                            <li><a class="hover:underline" href="https://cwe.mitre.org/top25/" target="_blank" rel="noopener">CWE Top 25 Most Dangerous Weaknesses</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold mb-3 text-ibm-blue60 dark:text-ibm-blue40">Tool documentation</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a class="hover:underline" href="https://checkstyle.sourceforge.io/" target="_blank" rel="noopener">Checkstyle</a> · checkstyle.sourceforge.io</li>
+                            <li><a class="hover:underline" href="https://pmd.github.io/" target="_blank" rel="noopener">PMD</a> · pmd.github.io</li>
+                            <li><a class="hover:underline" href="https://spotbugs.github.io/" target="_blank" rel="noopener">SpotBugs</a> · spotbugs.github.io</li>
+                            <li><a class="hover:underline" href="https://find-sec-bugs.github.io/" target="_blank" rel="noopener">Find Security Bugs</a> · find-sec-bugs.github.io</li>
+                            <li><a class="hover:underline" href="https://owasp.org/www-project-dependency-check/" target="_blank" rel="noopener">OWASP Dependency-Check</a></li>
+                            <li><a class="hover:underline" href="https://www.jacoco.org/jacoco/" target="_blank" rel="noopener">JaCoCo</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold mb-3 text-ibm-blue60 dark:text-ibm-blue40">Java & Spring</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a class="hover:underline" href="https://docs.oracle.com/en/java/javase/25/" target="_blank" rel="noopener">Java 25 Docs</a></li>
+                            <li><a class="hover:underline" href="https://docs.spring.io/spring-boot/4.0/" target="_blank" rel="noopener">Spring Boot 4 Reference</a></li>
+                            <li><a class="hover:underline" href="https://docs.spring.io/spring-security/reference/" target="_blank" rel="noopener">Spring Security Reference</a></li>
+                            <li><a class="hover:underline" href="https://www.oracle.com/java/technologies/javase/seccodeguide.html" target="_blank" rel="noopener">Oracle Secure Coding Guidelines for Java</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold mb-3 text-ibm-blue60 dark:text-ibm-blue40">Threat data</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a class="hover:underline" href="https://nvd.nist.gov/" target="_blank" rel="noopener">NIST NVD</a> · National Vulnerability Database</li>
+                            <li><a class="hover:underline" href="https://www.cve.org/" target="_blank" rel="noopener">CVE.org</a> · Authoritative CVE list</li>
+                            <li><a class="hover:underline" href="https://cwe.mitre.org/" target="_blank" rel="noopener">CWE</a> · Common Weakness Enumeration</li>
+                            <li><a class="hover:underline" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener">CISA KEV</a> · Known-Exploited Vulnerabilities</li>
+                            <li><a class="hover:underline" href="https://github.com/advisories" target="_blank" rel="noopener">GitHub Advisory Database</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="py-10 border-t border-ibm-gray20 dark:border-ibm-gray80 text-xs text-ibm-gray50 flex flex-wrap items-center justify-between gap-3">
+                <p>Secure Java Build Guide · for use with this project's <code>pom.xml</code></p>
+                <p>References load as live links · <button id="printBtn" class="underline hover:text-ibm-blue60">Print this page</button></p>
+            </footer>
+        </main>
+    </div>
+</div>
+
+<!-- ====================== MODALS ====================== -->
+<div id="modalRoot" class="hidden fixed inset-0 z-50 no-print" role="dialog" aria-modal="true">
+    <div id="modalBackdrop" class="absolute inset-0 bg-black/50"></div>
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-6">
+        <div class="bg-white dark:bg-ibm-gray100 w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-ibm-gray20 dark:border-ibm-gray80">
+            <header class="flex items-center justify-between p-5 border-b border-ibm-gray20 dark:border-ibm-gray80 sticky top-0 bg-white dark:bg-ibm-gray100">
+                <h3 id="modalTitle" class="text-lg font-semibold"></h3>
+                <button id="modalClose" class="w-9 h-9 inline-flex items-center justify-center hover:bg-ibm-gray10 dark:hover:bg-ibm-gray90" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </header>
+            <div id="modalBody" class="p-6 text-sm text-ibm-gray70 dark:text-ibm-gray30 space-y-4"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal content templates -->
+<template id="m-checkstyle">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Why Checkstyle exists.</strong> Stylistic consistency makes code reviewable. When every file follows the same rules — indentation, ordering, naming — reviewers can focus on logic rather than format. Style debates also disappear: the rules decide.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">How it works.</strong> Checkstyle parses Java source into an AST and runs configurable rule sets against it. Each rule is independently toggleable. Severity (info / warning / error) is per-rule.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Configuration philosophy.</strong> Start permissive, tighten over time. The default in this project errs on the side of common-sense rules: javadoc on public APIs, no unused imports, no <code>System.out.println</code>, reasonable line length. Edit <code>config/checkstyle.xml</code> to taste.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Security angle.</strong> Style isn't security, but unreadable code hides bugs and unreadable bugs include vulnerabilities. The link is indirect but real.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://checkstyle.sourceforge.io/checks.html" target="_blank" rel="noopener">Full rule catalog</a> · <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://checkstyle.sourceforge.io/google_style.html" target="_blank" rel="noopener">Google Java Style</a></p>
+</template>
+
+<template id="m-pmd">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What PMD does.</strong> PMD analyzes Java source code for design and implementation problems. Where Checkstyle is about <em>how it looks</em>, PMD is about <em>what it does</em>: error-prone patterns, dead code, suspicious comparisons, performance pitfalls.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">The category model.</strong> PMD 7 organizes rules into categories. The five we enable:</p>
+    <ul class="list-disc list-inside ml-2 space-y-1">
+        <li><code>bestpractices</code> — generally accepted good practices.</li>
+        <li><code>errorprone</code> — constructs likely to lead to bugs.</li>
+        <li><code>security</code> — Java-specific security patterns.</li>
+        <li><code>multithreading</code> — concurrent-code hazards.</li>
+        <li><code>performance</code> — needless allocations, slow patterns.</li>
+    </ul>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">CPD: copy-paste detector.</strong> Bundled with PMD. Finds duplicate code blocks across the codebase. Duplication is its own kind of bug: when one copy is fixed and the others aren't, you have a vulnerability with a half-life.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">PMD vs SpotBugs.</strong> Source vs bytecode. PMD sees your formatting and comments and naming intent; SpotBugs sees what the JVM actually runs. They overlap on some checks and diverge on others. Run both.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://pmd.github.io/pmd/pmd_rules_java.html" target="_blank" rel="noopener">PMD 7 Java rule reference</a></p>
+</template>
+
+<template id="m-spotbugs">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Origins.</strong> SpotBugs is the active fork of FindBugs, originally from the University of Maryland. It analyzes compiled <code>.class</code> files using dataflow analysis to spot a curated catalog of bug patterns.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Pattern catalog.</strong> ~400 patterns, grouped: correctness, malicious-code-vulnerability, multithreaded-correctness, performance, bad-practice, dodgy-code, internationalization. Each has a unique code (e.g. <code>NP_NULL_ON_SOME_PATH</code>) you can suppress or research.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Effort / threshold knobs.</strong> The project sets <code>Max</code> effort (most thorough analysis) and <code>Low</code> threshold (report even low-confidence findings). For a clean project, this is the right setting. For a legacy codebase, you might start at <code>Default</code> effort and <code>Medium</code> threshold.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Suppressing a finding.</strong> Use <code>@SuppressFBWarnings("PATTERN_CODE")</code> on the smallest possible scope, with a comment explaining why. Suppressions are reviewed in PR.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://spotbugs.readthedocs.io/en/latest/bugDescriptions.html" target="_blank" rel="noopener">All bug descriptions</a></p>
+</template>
+
+<template id="m-findsecbugs">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">A SpotBugs plugin, not a separate tool.</strong> FindSecBugs registers new detectors with the SpotBugs engine. One run, two catalogs. Zero overhead beyond having it on the classpath.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Why it's specifically valuable.</strong> Vanilla SpotBugs is general-purpose; many of its checks are about correctness or performance. FindSecBugs's 128+ detectors are <em>only</em> about security and cover Java-specific sinks: <code>Statement.executeQuery</code>, <code>Runtime.exec</code>, <code>ObjectInputStream.readObject</code>, <code>DocumentBuilderFactory</code>, JAX-RS / Spring MVC controller bindings.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Taint propagation.</strong> The detector tracks tainted (untrusted) values through method calls, field assignments, and collections. If a tainted value reaches a sink, the bug is reported. This is what makes injection detection viable without runtime instrumentation.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">False positives.</strong> Like any SAST tool, FindSecBugs has them — especially around taint propagation. Triage with care; don't disable rules wholesale.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://find-sec-bugs.github.io/bugs.htm" target="_blank" rel="noopener">Bug pattern catalog</a></p>
+</template>
+
+<template id="m-owasp">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it is.</strong> OWASP Dependency-Check is a Software Composition Analysis (SCA) tool. It examines every dependency in your build (direct and transitive), generates a CPE for each, and cross-references the NIST National Vulnerability Database for matching CVEs.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Why SCA matters.</strong> Modern applications are 70–90% third-party code. SAST tools (the other items on this page) check the 10–30% you write. SCA covers the rest. Log4Shell, Spring4Shell, and the Equifax breach were all SCA findings before they were incidents.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">The first run.</strong> Downloads ~600 MB of NVD JSON feeds. 10–20 minutes typically. Subsequent runs do incremental updates and complete in seconds.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">The NVD API key.</strong> Get one for free from <a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://nvd.nist.gov/developers/request-an-api-key" target="_blank" rel="noopener">nvd.nist.gov</a> and export it as <code>NVD_API_KEY</code>. Without it, NIST aggressively rate-limits requests.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">CVSS threshold.</strong> The plugin is configured to fail at CVSS ≥ 7 (High and Critical). Many teams start there and tighten to ≥ 4 (Medium) as their dependency hygiene improves.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Suppressing false positives.</strong> Use <code>config/owasp-suppressions.xml</code>. Every entry should have a reason and a <code>until</code> expiry date — otherwise suppressions calcify and protect real CVEs.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://jeremylong.github.io/DependencyCheck/" target="_blank" rel="noopener">Full documentation</a></p>
+</template>
+
+<template id="m-jacoco">
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">What it measures.</strong> JaCoCo instruments your classes at load time to record which instructions, branches, and lines executed during test runs. The report shows what was — and wasn't — exercised by your test suite.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Why instruction coverage.</strong> JaCoCo offers multiple counters. <em>Instruction</em> coverage is the most stable across Java versions and source formatting changes. The 70% bundle-level threshold is a starting point — many teams raise it to 80% as their suite matures.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Coverage isn't security, but…</strong> Untested code is unverified code. A SAST tool sees what code <em>could</em> do; a test suite sees what it <em>does</em> with realistic inputs. The Venn diagram of "covered by tests" and "covered by SAST" should approach 100% of your codebase.</p>
+    <p><strong class="text-ibm-gray100 dark:text-ibm-gray10">Coverage gaming.</strong> 100% line coverage with no assertions is meaningless. Use mutation testing (<a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://pitest.org/" target="_blank" rel="noopener">PIT</a>) to verify your tests actually verify behavior.</p>
+    <p class="text-xs"><a class="text-ibm-blue60 dark:text-ibm-blue40 hover:underline" href="https://www.jacoco.org/jacoco/trunk/doc/" target="_blank" rel="noopener">JaCoCo documentation</a></p>
+</template>
+
+<!-- ====================== JS ====================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script>
+  // ----- THEME -----
+  const root = document.documentElement;
+  const savedTheme = (() => {
+    try { return localStorage.getItem('sjg-theme'); } catch { return null; }
+  })();
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    root.classList.add('dark');
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    root.classList.toggle('dark');
+    try { localStorage.setItem('sjg-theme', root.classList.contains('dark') ? 'dark' : 'light'); } catch {}
+  });
+
+  // ----- MOBILE TOC DRAWER -----
+  const toc = document.getElementById('toc');
+  const tocBackdrop = document.getElementById('tocBackdrop');
+  const tocToggle = document.getElementById('tocToggle');
+  function openDrawer() {
+    toc.classList.remove('closed');
+    tocBackdrop.classList.remove('hidden');
+  }
+  function closeDrawer() {
+    toc.classList.add('closed');
+    tocBackdrop.classList.add('hidden');
+  }
+  tocToggle.addEventListener('click', () => {
+    toc.classList.contains('closed') ? openDrawer() : closeDrawer();
+  });
+  tocBackdrop.addEventListener('click', closeDrawer);
+  // Auto-close on link click (mobile)
+  toc.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    if (window.innerWidth < 1024) closeDrawer();
+  }));
+
+  // ----- SCROLL SPY -----
+  const sections = [...document.querySelectorAll('section[id], article[id]')];
+  const tocLinks = [...toc.querySelectorAll('a')];
+  const linkMap = new Map(tocLinks.map(a => [a.getAttribute('href').slice(1), a]));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      const link = linkMap.get(id);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        tocLinks.forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  sections.forEach(s => spy.observe(s));
+
+  // ----- TAB SWITCHING (good/bad code) -----
+  document.querySelectorAll('.example-block').forEach(block => {
+    const btns = block.querySelectorAll('.tab-btn');
+    const panels = block.querySelectorAll('.tab-content');
+    btns.forEach(btn => btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      panels.forEach(p => p.classList.toggle('hidden', p.dataset.tab !== tab));
+    }));
+  });
+
+  // ----- MODALS -----
+  const modalRoot = document.getElementById('modalRoot');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  const modalClose = document.getElementById('modalClose');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+
+  const modalMeta = {
+    'm-checkstyle': 'Checkstyle — deeper detail',
+    'm-pmd': 'PMD — deeper detail',
+    'm-spotbugs': 'SpotBugs — deeper detail',
+    'm-findsecbugs': 'Find Security Bugs — deeper detail',
+    'm-owasp': 'OWASP Dependency-Check — deeper detail',
+    'm-jacoco': 'JaCoCo — deeper detail',
+  };
+
+  function openModal(id) {
+    const tpl = document.getElementById(id);
+    if (!tpl) return;
+    modalTitle.textContent = modalMeta[id] || 'Detail';
+    modalBody.innerHTML = '';
+    modalBody.appendChild(tpl.content.cloneNode(true));
+    modalRoot.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modalRoot.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+  document.querySelectorAll('.more-btn').forEach(btn =>
+    btn.addEventListener('click', () => openModal(btn.dataset.modal))
+  );
+  modalClose.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  // ----- PRINT -----
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+  // ----- COPY ON CODE BLOCKS (delegated) -----
+  document.addEventListener('click', (e) => {
+    const pre = e.target.closest('pre');
+    if (!pre || e.target.tagName === 'BUTTON') return;
+    // Click anywhere on a pre to copy
+    if (e.altKey || e.metaKey || e.ctrlKey) {
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        const flash = document.createElement('div');
+        flash.textContent = 'Copied';
+        flash.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0f62fe;color:#fff;padding:10px 16px;font-size:13px;z-index:9999;font-family:IBM Plex Sans,sans-serif;';
+        document.body.appendChild(flash);
+        setTimeout(() => flash.remove(), 1400);
+      });
+    }
+  });
+
+  // Prism reprocess after DOM ready
+  if (window.Prism) Prism.highlightAll();
+</script>
+</body>
+</html>
