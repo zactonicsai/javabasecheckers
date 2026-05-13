@@ -13,6 +13,12 @@ A clean starter project with:
 
 ## Requirements
 
+- https://nvd.nist.gov/developers/request-an-api-key
+
+```
+setx NVD_API_KEY "your-key-here"
+```
+
 Install:
 
 - JDK 25

@@ -20,10 +20,23 @@
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
+
+        <!-- Coverage / quality / security plugin versions -->
         <jacoco.version>0.8.14</jacoco.version>
         <spotbugs-maven-plugin.version>4.9.8.3</spotbugs-maven-plugin.version>
+        <findsecbugs-plugin.version>1.14.0</findsecbugs-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <checkstyle.version>10.23.1</checkstyle.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+        <pmd.version>7.17.0</pmd.version>
+        <dependency-check.version>12.2.2</dependency-check.version>
+
+        <!-- Security scan thresholds / behavior -->
+        <!-- Fail on CVSS >= 7 (High/Critical). Lower to 4 for Medium+. -->
+        <dependency-check.failBuildOnCVSS>7</dependency-check.failBuildOnCVSS>
+        <!-- Skip the slow scan with: -Ddependency-check.skip=true -->
+        <dependency-check.skip>false</dependency-check.skip>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -47,6 +60,9 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
+            <!-- ============================================================
+                 JaCoCo - test coverage (existing)
+                 ============================================================ -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -89,6 +105,13 @@
                 </executions>
             </plugin>
 
+            <!-- ============================================================
+                 SpotBugs + Find Security Bugs
+                 SpotBugs finds general bug patterns; the FindSecBugs plugin
+                 adds OWASP-focused security detectors (SQL injection, XSS,
+                 weak crypto, path traversal, XXE, insecure deserialization,
+                 hard-coded passwords, etc.) on top.
+                 ============================================================ -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
@@ -99,6 +122,14 @@
                     <xmlOutput>true</xmlOutput>
                     <htmlOutput>true</htmlOutput>
                     <failOnError>true</failOnError>
+                    <!-- Add FindSecBugs detectors -->
+                    <plugins>
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>${findsecbugs-plugin.version}</version>
+                        </plugin>
+                    </plugins>
                 </configuration>
                 <executions>
                     <execution>
@@ -111,6 +142,9 @@
                 </executions>
             </plugin>
 
+            <!-- ============================================================
+                 Checkstyle - style/convention checks (existing)
+                 ============================================================ -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
@@ -131,6 +165,95 @@
                 <executions>
                     <execution>
                         <id>checkstyle-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ============================================================
+                 PMD - source-level static analysis
+                 Complements SpotBugs (which works on bytecode). Catches
+                 design smells, unused code, suspicious constructs; the
+                 cpd-check goal also detects copy-pasted code blocks.
+                 ============================================================ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-core</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-java</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetJdk>${java.version}</targetJdk>
+                    <printFailingErrors>true</printFailingErrors>
+                    <failOnViolation>true</failOnViolation>
+                    <minimumTokens>100</minimumTokens>
+                    <rulesets>
+                        <ruleset>/category/java/bestpractices.xml</ruleset>
+                        <ruleset>/category/java/errorprone.xml</ruleset>
+                        <ruleset>/category/java/security.xml</ruleset>
+                        <ruleset>/category/java/multithreading.xml</ruleset>
+                        <ruleset>/category/java/performance.xml</ruleset>
+                    </rulesets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>pmd-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                            <goal>cpd-check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ============================================================
+                 OWASP Dependency-Check - scan deps for known CVEs
+                 First run downloads the NVD database (~10-20 min).
+                 Subsequent runs use the cached feed (seconds).
+                 Set env var NVD_API_KEY for a free fast-path key from NIST:
+                   https://nvd.nist.gov/developers/request-an-api-key
+                 Skip locally: mvn verify -Ddependency-check.skip=true
+                 ============================================================ -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check.version}</version>
+                <configuration>
+                    <skip>${dependency-check.skip}</skip>
+                    <failBuildOnCVSS>${dependency-check.failBuildOnCVSS}</failBuildOnCVSS>
+                    <!-- Reads from environment; empty is OK but slower (rate-limited) -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <!-- Don't scan things not shipped with the app -->
+                    <skipProvidedScope>true</skipProvidedScope>
+                    <skipTestScope>true</skipTestScope>
+                    <!-- HTML for humans, JSON for tooling, SARIF for GitHub Code Scanning -->
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <!-- Suppress known false positives here -->
+                    <suppressionFiles>
+                        <suppressionFile>config/owasp-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>dependency-check</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>check</goal>

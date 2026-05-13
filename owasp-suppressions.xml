@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency-Check suppression file.
+
+  Use this to silence FALSE POSITIVES — never a real CVE you simply
+  haven't fixed yet. Each entry should justify why the match is wrong
+  (mis-identified library, CVE doesn't affect the way we use it, etc.)
+  and ideally have an expiry date so you re-evaluate.
+
+  Reference: https://jeremylong.github.io/DependencyCheck/general/suppression.html
+
+  Generate a suppression block: open the HTML report at
+  target/dependency-check-report.html, find the flagged dependency,
+  click "suppress" — it'll show you the exact <suppress> XML to paste.
+
+  Example below is intentionally commented out.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+    <suppress until="2026-12-31Z">
+        <notes><![CDATA[
+            False positive: dependency-check identifies our library as
+            "acme-foo" but the CVE applies to a different "acme-foo"
+            from a different vendor.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.example/some-lib@.*$</packageUrl>
+        <cve>CVE-2024-99999</cve>
+    </suppress>
+    -->
+
+</suppressions>
